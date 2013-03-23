@@ -2,7 +2,7 @@ module NLP.WordNet.PrimTypes where
 
 import Data.Array
 import System.IO
-import Control.OldException
+import Control.Exception
 import Data.Dynamic (Typeable)
 
 type Offset = Integer
@@ -81,7 +81,7 @@ data WordNetEnv =
        vSentHandle :: Maybe (Handle, Handle), -- index, real
        wnReleaseVersion :: Maybe String,
        dataDirectory :: FilePath,
-       warnAbout :: String -> Exception -> IO ()
+       warnAbout :: String -> SomeException -> IO ()
      }
 
 wordNetEnv0 = WordNetEnv { 

@@ -64,7 +64,7 @@ module NLP.WordNet
 import Prelude hiding (catch)
 import Data.Array
 import GHC.Arr (unsafeIndex)
-import GHC.Handle
+import GHC.IO.Handle
 import Data.Tree
 import Data.IORef
 import Data.Dynamic
@@ -97,7 +97,7 @@ runWordNetQuiet = runWordNetWithOptions Nothing (Just (\_ _ -> return ()))
 -- the environment and returns the results in the 'IO' monad.
 runWordNetWithOptions :: 
     Maybe FilePath ->                          -- word net data directory
-    Maybe (String -> Exception -> IO ()) ->    -- warning function (by default, warnings go to stderr)
+    Maybe (String -> SomeException -> IO ()) ->    -- warning function (by default, warnings go to stderr)
     WN a ->                                    -- what to run
       IO a
 runWordNetWithOptions dd warn wn = do
@@ -114,7 +114,7 @@ initializeWordNet = P.initializeWordNet
 -- | Takes a FilePath to the directory holding WordNet and
 -- a function to do with warnings, initializes 
 -- the environment and returns a 'WordNetEnv' as in 'initializeWordNet'.
-initializeWordNetWithOptions :: Maybe FilePath -> Maybe (String -> Exception -> IO ()) -> IO WordNetEnv
+initializeWordNetWithOptions :: Maybe FilePath -> Maybe (String -> SomeException -> IO ()) -> IO WordNetEnv
 initializeWordNetWithOptions = P.initializeWordNetWithOptions
 
 -- | Closes all the handles associated with the 'WordNetEnv'.  Since

@@ -3,11 +3,12 @@ module NLP.WordNet.Util where
 import NLP.WordNet.PrimTypes
 
 import Prelude hiding (catch)
-import Control.OldException
+import Control.Exception
 import Data.Char (toLower)
 import Data.List (nub)
 import Data.Maybe (fromMaybe)
-import GHC.Handle
+import GHC.IO.Handle
+import System.IO
 
 data IOModeEx = BinaryMode IOMode | AsciiMode IOMode deriving (Eq, Ord, Show, Read)
 
@@ -47,9 +48,9 @@ charForPOS (Adj)  = "a"
 charForPOS (Adv)  = "r"
 
 tryMaybe :: IO a -> IO (Maybe a)
-tryMaybe a = (a >>= return . Just) `catch` (const (return Nothing))
+tryMaybe a = (a >>= return . Just) `catch` (\(_ :: SomeException) -> return Nothing)
 
-tryMaybeWarn :: (Exception -> IO ()) -> IO a -> IO (Maybe a)
+tryMaybeWarn :: Exception e => (e -> IO ()) -> IO a -> IO (Maybe a)
 tryMaybeWarn warn a = (a >>= return . Just) `catch` (\e -> warn e >> return Nothing)
 
 partName :: POS -> String

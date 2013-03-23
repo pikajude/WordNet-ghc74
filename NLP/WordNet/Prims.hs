@@ -31,11 +31,11 @@ import System.Environment
 import Numeric (readHex, readDec)
 import Data.Char (toLower, isSpace)
 import Data.Array
-import Control.OldException
+import Control.Exception
 import Control.Monad (when, liftM, mplus)
 import Data.List (findIndex, find)
 import Data.Maybe (isNothing, fromJust, isJust, fromMaybe)
-import GHC.Handle -- (openFileEx, BinaryMode(..))
+import GHC.IO.Handle -- (openFileEx, BinaryMode(..))
 
 import NLP.WordNet.PrimTypes
 import NLP.WordNet.Util
@@ -55,7 +55,7 @@ initializeWordNet =
 -- place on your machine and you don't have the appropriate env vars set up.
 initializeWordNetWithOptions :: 
     Maybe FilePath ->                          -- word net data directory
-    Maybe (String -> Exception -> IO ()) ->    -- "warning" function (by default, warnings go to stderr)
+    Maybe (String -> SomeException -> IO ()) ->    -- "warning" function (by default, warnings go to stderr)
       IO WordNetEnv
 initializeWordNetWithOptions mSearchdir mWarn = do
   searchdir <- case mSearchdir of { Nothing -> getDefaultSearchDir ; Just d -> return d }
