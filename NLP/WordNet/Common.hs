@@ -1,16 +1,8 @@
-module NLP.WordNet.Common
-    (
-     module Data.Char,
-     module Data.List,
-     module Data.Maybe,
-     module Control.Exception,
-     module Control.Monad,
-    )
-    where
+module NLP.WordNet.Common (module X) where
 
-import Prelude hiding (catch)
-import Data.Char
-import Data.List
-import Data.Maybe
-import Control.Exception
-import Control.Monad
+import Prelude
+import Data.Char as X
+import Data.List as X
+import Data.Maybe as X
+import Control.Exception as X
+import Control.Monad as X

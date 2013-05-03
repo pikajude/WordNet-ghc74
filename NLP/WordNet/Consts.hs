@@ -1,9 +1,14 @@
 module NLP.WordNet.Consts where
 
-import Data.List (intersperse)
+import Data.String
 import System.FilePath (joinPath)
 
+makePath :: [FilePath] -> FilePath
 makePath = joinPath
+
+dictDir :: IsString a => a
+defaultPath :: IsString a => a
+defaultBin :: IsString a => a
 
 #if defined (UNIX)
 dictDir         = "/dict"

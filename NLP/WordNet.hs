@@ -61,19 +61,12 @@ module NLP.WordNet
     )
     where
 
-import Prelude hiding (catch)
-import Data.Array
-import GHC.Arr (unsafeIndex)
-import GHC.IO.Handle
+import Prelude
 import Data.Tree
-import Data.IORef
-import Data.Dynamic
 import qualified Data.Set as Set
-import Numeric (readHex, readDec)
 import System.IO.Unsafe
 
 import NLP.WordNet.Common
-import NLP.WordNet.Consts
 import NLP.WordNet.Util
 import NLP.WordNet.Types
 
@@ -144,7 +137,7 @@ getOverview word = unsafePerformIO $ do
       strM <- P.getIndexString ?wne word pos
       case strM of
         Nothing -> return Nothing
-        Just  s -> unsafeInterleaveIO $ P.indexLookup ?wne word pos
+        Just  _ -> unsafeInterleaveIO $ P.indexLookup ?wne word pos
 
 -- | This takes an 'Overview' (see 'getOverview'), a 'POS' and a 'SenseType' and returns
 -- a list of search results.  If 'SenseType' is 'AllSenses', there will be one
@@ -159,9 +152,9 @@ searchByOverview overview pos sense = unsafePerformIO $
       let numSenses = T.indexSenseCount idx
       skL <- mapMaybe id `liftM` 
              unsafeInterleaveIO (
-               mapM (\sense -> do
-                     skey <- P.indexToSenseKey ?wne idx sense
-                     return (liftM ((,) sense) skey)
+               mapM (\sense' -> do
+                     skey <- P.indexToSenseKey ?wne idx sense'
+                     return (liftM ((,) sense') skey)
                     ) (sensesOf numSenses sense)
              )
       r <- unsafeInterleaveIO $ mapM (\ (snum, skey) ->
@@ -180,7 +173,7 @@ searchByOverview overview pos sense = unsafePerformIO $
 -- | This takes a 'Word', a 'POS' and a 'SenseType' and returns
 -- the equivalent of first running 'getOverview' and then 'searchByOverview'.
 search :: WN (Word -> POS -> SenseType -> [SearchResult])
-search word pos sense = searchByOverview (getOverview word) pos sense
+search word = searchByOverview (getOverview word)
 
 -- | This takes a 'Key' (see 'srToKey' and 'srFormKeys') and looks it
 -- up in the databse.
@@ -236,6 +229,7 @@ instance Bag [] a where
   addToBag = flip (:)
   isEmptyBag = null
   splitBag (x:xs) = (x, xs)
+  splitBag [] = undefined
 
 -- | A very slow queue based on lists.
 newtype Queue a = Queue [a] deriving (Show)
@@ -245,6 +239,7 @@ instance Bag Queue a where
   addToBag (Queue l) a = Queue (l++[a])
   isEmptyBag (Queue l) = null l
   splitBag (Queue (x:xs)) = (x, Queue xs)
+  splitBag (Queue []) = undefined
   addListToBag (Queue l) l' = Queue (l ++ l')
 
 -- | An empty stack.
@@ -314,6 +309,11 @@ meetPaths emptyBg sr1 sr2 = meetSearchPaths emptyBg t1 t2
     t1 = closureOn Hypernym sr1
     t2 = closureOn Hypernym sr2
 
+meetSearchPaths :: Bag b (Tree SearchResult)
+                => b (Tree SearchResult)
+                -> Tree SearchResult
+                -> Tree SearchResult
+                -> Maybe ([SearchResult], SearchResult, [SearchResult])
 meetSearchPaths emptyBg t1 t2 =
   let srch b v1 v2 bag1 bag2
         | isEmptyBag bag1 && isEmptyBag bag2 = Nothing
@@ -330,9 +330,5 @@ meetSearchPaths emptyBg t1 t2 =
                             bag2 (addListToBag bag1' chl) -- flip the order :)
   in  srch True [] [] (addToBag emptyBg t1) (addToBag emptyBg t2)
   where
-    containsResult v sl = sl `elem` map (flip srWords AllSenses) v
+    containsResult v sl = sl `elem` map (`srWords` AllSenses) v
     addResult v sr = sr:v
-
-personTree       = runWordNetQuiet (closureOn Hypernym (head $ search "person"       Noun AllSenses))
-organizationTree = runWordNetQuiet (closureOn Hypernym (head $ search "organization" Noun AllSenses))
-

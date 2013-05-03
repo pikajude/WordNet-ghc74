@@ -10,14 +10,17 @@ type Offset = Integer
 -- | The basic part of speech type, either a 'Noun', 'Verb', 'Adj'ective or 'Adv'erb.
 data POS = Noun | Verb | Adj | Adv
          deriving (Eq, Ord, Show, Ix, Typeable)
+allPOS :: [POS]
 allPOS = [Noun ..]
 
 data EPOS = POS POS | Satellite | AdjSatellite | IndirectAnt | DirectAnt | UnknownEPos | Pertainym
           deriving (Eq, Ord, Typeable)
 
+fromEPOS :: EPOS -> POS
 fromEPOS (POS p) = p
 fromEPOS _ = Adj
 
+allEPOS :: [EPOS]
 allEPOS = [POS Noun ..]
 
 instance Enum POS where
@@ -25,6 +28,7 @@ instance Enum POS where
   toEnum 2 = Verb
   toEnum 3 = Adj
   toEnum 4 = Adv
+  toEnum _ = undefined
   fromEnum Noun = 1
   fromEnum Verb = 2
   fromEnum Adj  = 3
@@ -39,27 +43,29 @@ instance Enum EPOS where
   toEnum 4 = POS Adv
   toEnum 5 = Satellite
   toEnum 6 = AdjSatellite
+  toEnum _ = undefined
   fromEnum (POS Noun) = 1
   fromEnum (POS Verb) = 2
   fromEnum (POS Adj)  = 3
   fromEnum (POS Adv)  = 4
   fromEnum Satellite  = 5
   fromEnum AdjSatellite = 6
+  fromEnum _ = 0
   enumFrom i = enumFromTo i AdjSatellite
   enumFromThen i j = enumFromThenTo i j AdjSatellite
 
 instance Show EPOS where
   showsPrec i (POS p) = showsPrec i p
-  showsPrec i (Satellite) = showString "Satellite"
-  showsPrec i (AdjSatellite) = showString "AdjSatellite"
-  showsPrec i (IndirectAnt) = showString "IndirectAnt"
-  showsPrec i (DirectAnt) = showString "DirectAnt"
-  showsPrec i (Pertainym) = showString "Pertainym"
-  showsPrec i (UnknownEPos) = showString "UnknownEPos"
+  showsPrec _ (Satellite) = showString "Satellite"
+  showsPrec _ (AdjSatellite) = showString "AdjSatellite"
+  showsPrec _ (IndirectAnt) = showString "IndirectAnt"
+  showsPrec _ (DirectAnt) = showString "DirectAnt"
+  showsPrec _ (Pertainym) = showString "Pertainym"
+  showsPrec _ (UnknownEPos) = showString "UnknownEPos"
 
 instance Ix EPOS where
   range (i,j) = [i..j]
-  index (i,j) a = fromEnum a - fromEnum i
+  index (i,_) a = fromEnum a - fromEnum i
   inRange (i,j) a = a `elem` [i..j]
 
 
@@ -69,6 +75,7 @@ readEPOS "v" = POS Verb
 readEPOS "a" = POS Adj
 readEPOS "r" = POS Adv
 readEPOS "s" = Satellite
+readEPOS _ = undefined
 
 data WordNetEnv =
      WordNetEnv {
@@ -84,6 +91,7 @@ data WordNetEnv =
        warnAbout :: String -> SomeException -> IO ()
      }
 
+wordNetEnv0 :: WordNetEnv
 wordNetEnv0 = WordNetEnv { 
                 dataHandles = undefined,
                 excHandles  = undefined,
@@ -127,6 +135,7 @@ data Synset =
        headSense :: SenseType
      } -- deriving (Show)
 
+synset0 :: Synset
 synset0 = Synset 0 UnknownEPos (-1) undefined [] Nothing [] [] "" Nothing (-1) "" AllSenses
 
 -- | The basic type which holds search results.  Its 'Show' instance simply
@@ -156,6 +165,7 @@ data Index =
        indexOffsets :: [Offset]
      } deriving (Eq, Ord, Show, Typeable)
 
+index0 :: Index
 index0 = Index "" (POS Noun) (-1) [] (-1) []
 
 -- | The different types of relations which can hold between WordNet Synsets.

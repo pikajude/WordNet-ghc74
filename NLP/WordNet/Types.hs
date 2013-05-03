@@ -76,7 +76,6 @@ module NLP.WordNet.Types
     )
     where
 
-import System.IO.Unsafe
 import Data.List
 import Data.Maybe
 
@@ -154,7 +153,7 @@ srSenses = nub . map thr3 . ssWords . srSynset
 
 -- | This gives the actual words used to describe the Synset of a search result.
 srWords :: SearchResult -> SenseType -> [Word]
-srWords sr t = nub . map fst3 . filter ((isType t) . thr3) . ssWords . srSynset $ sr
+srWords sr t = nub . map fst3 . filter (isType t . thr3) . ssWords . srSynset $ sr
   where isType AllSenses _ = True
         isType _ AllSenses = True
         isType (SenseNumber n) (SenseNumber m) = n == m
@@ -185,7 +184,3 @@ srToKey sr = Key (hereIAm $ srSynset sr, p)
                            _ -> case ssType (srSynset sr) of
                                   POS pp -> pp
                                   _      -> Adj
-
-instance Show SearchResult where
-  showsPrec i (SearchResult { srSynset = ss }) =
-    showChar '<' . showString (unwords $ map fst3 $ ssWords ss) . showChar '>'

@@ -31,11 +31,11 @@ import System.Environment
 import Numeric (readHex, readDec)
 import Data.Char (toLower, isSpace)
 import Data.Array
+import Data.Foldable (forM_)
 import Control.Exception
-import Control.Monad (when, liftM, mplus)
-import Data.List (findIndex, find)
+import Control.Monad (when, liftM, mplus, unless)
+import Data.List (findIndex, find, elemIndex)
 import Data.Maybe (isNothing, fromJust, isJust, fromMaybe)
-import GHC.IO.Handle -- (openFileEx, BinaryMode(..))
 
 import NLP.WordNet.PrimTypes
 import NLP.WordNet.Util
@@ -61,12 +61,12 @@ initializeWordNetWithOptions mSearchdir mWarn = do
   searchdir <- case mSearchdir of { Nothing -> getDefaultSearchDir ; Just d -> return d }
   let warn = fromMaybe (\s e -> hPutStrLn stderr (s ++ "\n" ++ show e)) mWarn
   version <- tryMaybe $ getEnv "WNDBVERSION"
-  dHands <- mapM (\pos -> do
+  dHands <- mapM (\pos' -> do
                   idxH  <- openFileEx
-                             (makePath [searchdir, "index." ++ partName pos])
+                             (makePath [searchdir, "index." ++ partName pos'])
                              (BinaryMode ReadMode)
                   dataH <- openFileEx 
-                             (makePath [searchdir, "data." ++ partName pos])
+                             (makePath [searchdir, "data." ++ partName pos'])
                              (BinaryMode ReadMode)
                   return (idxH, dataH)
                  ) allPOS
@@ -84,10 +84,10 @@ initializeWordNetWithOptions mSearchdir mWarn = do
                idx <- openFileEx (makePath [searchdir, "sentidx.vrb"]) (BinaryMode ReadMode)
                snt <- openFileEx (makePath [searchdir, "sents.vrb"  ]) (BinaryMode ReadMode)
                return (idx, snt)
-  mHands <- mapM (\pos -> openFileEx 
-                            (makePath [searchdir, partName pos ++ ".exc"])
+  mHands <- mapM (\pos' -> openFileEx 
+                            (makePath [searchdir, partName pos' ++ ".exc"])
                             (BinaryMode ReadMode)) allPOS
-  return $ WordNetEnv 
+  return WordNetEnv 
               { dataHandles = listArray (Noun, Adv) dHands,
                 excHandles  = listArray (Noun, Adv) mHands,
                 senseHandle = sense,
@@ -116,7 +116,7 @@ closeWordNet :: WordNetEnv -> IO ()
 closeWordNet wne = do
   mapM_ (\ (h1,h2) -> hClose h1 >> hClose h2) (elems (dataHandles wne))
   mapM_ hClose (elems (excHandles wne))
-  mapM_ (\x -> when (isJust x) $ hClose (fromJust x))
+  mapM_ (`forM_` hClose)
         [senseHandle wne, countListHandle wne, keyIndexHandle wne,
          revKeyIndexHandle wne, liftM fst (vSentHandle wne), liftM snd (vSentHandle wne)]
 
@@ -138,15 +138,15 @@ getIndexString wne str partOfSpeech = getIndexString' . cannonWNString $ str
 -- be built using indexToSenseKey.
 getSynsetForSense :: WordNetEnv -> SenseKey -> IO (Maybe Synset)
 getSynsetForSense wne _ | isNothing (senseHandle wne) = ioError $ userError "no sense dictionary"
-getSynsetForSense wne key = do
+getSynsetForSense wne key' = do
   l <- binarySearch
          (fromJust $ senseHandle wne)
-         (senseKeyString key) -- ++ " " ++ charForPOS (senseKeyPOS key))
+         (senseKeyString key') -- ++ " " ++ charForPOS (senseKeyPOS key))
   case l of
     Nothing -> return Nothing
-    Just l  -> do offset <- maybeRead $ takeWhile (not . isSpace) $
-                               drop 1 $ dropWhile (not . isSpace) l
-                  ss <- readSynset wne (senseKeyPOS key) offset (senseKeyWord key)
+    Just l' -> do offset <- maybeRead $ takeWhile (not . isSpace) $
+                               drop 1 $ dropWhile (not . isSpace) l'
+                  ss <- readSynset wne (senseKeyPOS key') offset (senseKeyWord key')
                   return (Just ss)
 
 -- | readSynset takes a part of speech, and an offset (the offset can be found
@@ -178,7 +178,7 @@ readSynset wne searchPos offset w = do
 --  print (toks, ptrCountS, ptrCount)
   wrds' <- readWords ss1 wrds
   let ss2 = ss1 { ssWords = wrds',
-                  whichWord = findIndex (==w) wrds }
+                  whichWord = elemIndex w wrds }
   let (ptrs,rest3) = splitAt (ptrCount*4) rest2
   let (fp,ss3) = readPtrs (False,ss2) ptrs
   let ss4 = if fp && searchPos == Adj && ssType ss3 == UnknownEPos
@@ -187,23 +187,23 @@ readSynset wne searchPos offset w = do
   let (ss5,rest4) = 
         if searchPos /= Verb 
           then (ss4, rest3) 
-          else let (fcountS:rest4) = rest3
-                   (synPtrs, rest5) = splitAt (read fcountS * 3) rest4
+          else let (fcountS:_) = rest3
+                   (_ , rest5) = splitAt (read fcountS * 3) rest4
                in  (ss4, rest5)
 
   let ss6 = ss5 { defn = unwords $ drop 1 rest4 }
 
   return ss6
   where
-    readWords ss (w:lid:xs) = do
-      let s = map toLower $ replaceChar ' ' '_' w
+    readWords ss (w':lid:xs) = do
+      let s = map toLower $ replaceChar ' ' '_' w'
       idx  <- indexLookup wne s (fromEPOS $ pos ss)
 --      print (w,st,idx)
       let posn = case idx of
                    Nothing -> Nothing
-                   Just ix -> findIndex (==hereIAm ss) (indexOffsets ix)
+                   Just ix -> elemIndex (hereIAm ss) (indexOffsets ix)
       rest <- readWords ss xs
-      return ((w, fst $ head $ readHex lid, maybe AllSenses SenseNumber posn) : rest)
+      return ((w', fst $ head $ readHex lid, maybe AllSenses SenseNumber posn) : rest)
     readWords _ _ = return []
     readPtrs (fp,ss) (typ:off:ppos:lexp:xs) = 
       let (fp',ss') = readPtrs (fp,ss) xs
@@ -231,20 +231,20 @@ indexToSenseKey wne idx sense = do
   case findIndex ((==indexWord idx) . map toLower) (map (\ (w,_,_) -> w) $ ssWords ss2) of
     Nothing -> return Nothing
     Just  j -> do
-      let skey = if ssType ss2 == Satellite
-                   then indexWord idx ++ "%" ++ show (fromEnum Satellite) ++ ":" ++
+      let skey = ((indexWord idx ++ "%") ++) (if ssType ss2 == Satellite
+                   then show (fromEnum Satellite) ++ ":" ++
                         padTo 2 (show $ fnum ss2) ++ ":" ++ headWord ss2 ++ ":" ++
                         padTo 2 (show $ headSense ss2)
-                   else indexWord idx ++ "%" ++ show (fromEnum $ pos ss2) ++ ":" ++
+                   else show (fromEnum $ pos ss2) ++ ":" ++
                         padTo 2 (show $ fnum ss2) ++ ":" ++ 
-                        padTo 2 (show $ lexId ss2 j) ++ "::"
+                        padTo 2 (show $ lexId ss2 j) ++ "::")
       return (Just $ SenseKey cpos skey (indexWord idx))
   where
     followSatellites ss 
         | ssType ss == Satellite =
             case find (\ (f,_,_,_,_) -> f == Similar) (forms ss) of
               Nothing -> return ss
-              Just (f,offset,p,j,k) -> do
+              Just (_,offset,p,_,_) -> do
                 adjss <- readSynset wne (fromEPOS p) offset ""
                 case ssWords adjss of
                   (hw,_,hs):_ -> return (ss { headWord  = map toLower hw,
@@ -254,8 +254,8 @@ indexToSenseKey wne idx sense = do
 
 -- indexLookup takes a word and part of speech and gives back its index.
 indexLookup :: WordNetEnv -> String -> POS -> IO (Maybe Index)
-indexLookup wne w pos = do
-  ml <- binarySearch (fst (dataHandles wne ! pos)) w
+indexLookup wne w pos' = do
+  ml <- binarySearch (fst (dataHandles wne ! pos')) w
   case ml of
     Nothing -> return Nothing
     Just  l -> do
@@ -294,16 +294,17 @@ binarySearch h s = do
                else binarySearch' top (bot-1) ((top+bot-1) `div` 2)
         else do
           l <- hGetLine h
-          let key = takeWhile (/=' ') l
-          if key == s 
+          let key' = takeWhile (/=' ') l
+          if key' == s 
             then return (Just l)
             else case (bot - top) `div` 2 of
                    0 -> return Nothing
-                   d -> case key `compare` s of
+                   d -> case key' `compare` s of
                           LT -> binarySearch' mid bot (mid + d)
                           GT -> binarySearch' top mid (top + d)
+                          EQ -> undefined
     readUntilNL = do
       eof <- hIsEOF h
-      if eof 
-        then return ()
-        else do hGetLine h; return ()
+      unless eof $ do
+        hGetLine h
+        return ()
