@@ -1,5 +1,5 @@
 Name:               WordNet
-Version:            1.0.0
+Version:            1.1.0
 Description:
     A pure-Haskell interface to the WordNet lexical database of English.
     Depends on the WordNet database, but not on the WordNet source code.
@@ -12,6 +12,7 @@ Maintainer:         Max Rabkin <max.rabkin@gmail.com>
 Build-Depends:      base, filepath
 Build-Type:         Simple
 Cabal-Version:      >= 1.8
+Tested-With:        GHC == 7.4.2, GHC == 7.6.3, GHC == 7.7.20130824
 
 Library
     Build-depends: base == 4.*, containers, filepath, array
