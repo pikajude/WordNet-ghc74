@@ -15,7 +15,6 @@ Cabal-Version:      >= 1.8
 
 Library
     Build-depends: base == 4.*, containers, filepath, array
-        
     Exposed-Modules:
         NLP.WordNet
 
@@ -27,4 +26,4 @@ Library
         NLP.WordNet.Prims
         NLP.WordNet.Types
 
-    Extensions:     CPP, DeriveDataTypeable, ImplicitParams, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables
+    Extensions:     CPP, DeriveDataTypeable, ImplicitParams, MultiParamTypeClasses, OverloadedStrings, RankNTypes, ScopedTypeVariables
