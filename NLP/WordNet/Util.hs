@@ -2,7 +2,11 @@ module NLP.WordNet.Util where
 
 import NLP.WordNet.PrimTypes
 
+#if MIN_VERSION_base(4,6,0)
 import Prelude
+#else
+import Prelude hiding (catch)
+#endif
 import Control.Exception
 import Control.Monad
 import Data.Char (toLower)
